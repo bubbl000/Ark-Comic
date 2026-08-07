@@ -14,6 +14,7 @@ third_party/bin/
 
 # ── 内部开发文档与脚本（不上传）──
 需求话术-*.md
+CLAUDE.md
 run_test.bat
 build_ci.bat
 build_quick.bat

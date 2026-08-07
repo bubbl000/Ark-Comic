@@ -1,6 +1,8 @@
 # Ark Comic — 方舟漫画阅读器
 
-一个干净且快速的 Windows 漫画阅读器：CBZ/ZIP 漫画仓库管理与阅读。原生 Win32 + Direct2D + C++20 编写。
+一个干净且快速的 Windows 漫画阅读软件
+漫画管理+漫画阅读一体
+CBZ/ZIP 漫画仓库管理与阅读。
 
 ## 软件功能
 
@@ -26,6 +28,18 @@
 | **工程体系** | Ark Viewer 2（同技术栈 Win32 + Direct2D，沿用其构建/打包/图标体系）|
 | **解码库** | libjpeg-turbo（turbojpeg.dll）、NVIDIA nvJPEG（N 卡硬解）、miniz（ZIP 解压，单文件库）、SQLite（书库）|
 | **系统 API** | Win32 / Direct2D / WIC / DWM（圆角窗口）|
+
+## 开源软件与许可
+
+| 库 | 用途 | 许可证 |
+|---|---|---|
+| [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo)（turbojpeg.dll）| JPEG 解码加速（DCT 降采样）| BSD-3-Clause / IJG |
+| [miniz](https://github.com/richgel999/miniz) | CBZ/ZIP 解压（单文件库，编译进 exe）| Unlicense / MIT |
+| [SQLite](https://www.sqlite.org/)（sqlite3）| 书库存储 | Public Domain |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON 解析（配置）| MIT |
+| NVIDIA nvJPEG（nvjpeg64_12.dll）| N 卡 JPEG 硬件解码（运行时动态加载）| NVIDIA 专有（非开源，仅随安装包分发）|
+
+> 说明：turbojpeg/nvjpeg/cudart 为二进制 DLL（运行时动态加载），未随源码仓库分发——构建前需放入 `third_party/bin/`（见构建说明）或从发布包提取。
 
 ## AI 与人工分工
 
