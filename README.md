@@ -60,4 +60,4 @@ packaging\ArkComic_setup.iss  （Inno Setup 6）
 
 ## 许可证
 
-MIT（详见 LICENSE）
+GPL-3.0（详见 LICENSE）
