@@ -1,0 +1,5 @@
+// Ark Comic 资源脚本
+#include "resource.h"
+
+// 应用图标（logo.png 转换，多尺寸 16-256）
+IDI_APP ICON "app.ico"

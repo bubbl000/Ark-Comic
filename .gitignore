@@ -1,0 +1,28 @@
+# ── 构建产物（不上传）──
+build/
+release_pkg/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# ── 运行时 DLL（不上传）──
+# turbojpeg/nvjpeg/cudart 为二进制/专有文件，不入仓库；
+# 构建前放入 third_party/bin/（可从发布包提取），CMake 检测到存在时自动拷贝到 build/
+third_party/bin/
+
+# ── 内部开发文档与脚本（不上传）──
+需求话术-*.md
+run_test.bat
+build_ci.bat
+build_quick.bat
+重启漫画阅读器.bat
+
+# ── 编辑器/系统 ──
+.hermes/
+.trae/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
