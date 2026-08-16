@@ -149,6 +149,32 @@ void WindowBase::DrawTitleBarContent(ID2D1RenderTarget* rt, int w, int h) {
     D2D::Text(rt, title_, tr, theme::TextPrimary(), 12, DWRITE_FONT_WEIGHT_SEMI_BOLD);
 }
 
+// 子 EDIT 使用的字体（微软雅黑 UI 13px，缓存复用）
+static HFONT EditFont() {
+    static HFONT f = CreateFontW(-14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                                 DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                 CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, theme::FontUI());
+    return f;
+}
+
+HWND WindowBase::CreateEdit(const D2D1_RECT_F& rect, UINT id, const wchar_t* text) {
+    HWND h = CreateWindowExW(0, L"EDIT", text ? text : L"",
+                             WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_LEFT,
+                             (int)rect.left, (int)rect.top, (int)(rect.right - rect.left),
+                             (int)(rect.bottom - rect.top), hwnd_, (HMENU)(INT_PTR)id,
+                             GetModuleHandleW(nullptr), nullptr);
+    if (h) SendMessageW(h, WM_SETFONT, (WPARAM)EditFont(), TRUE);
+    return h;
+}
+
+// 深色主题子 EDIT 着色（DC_BRUSH 免管理画刷生命周期）
+HBRUSH WindowBase::OnEditColor(HDC hdc, HWND) {
+    SetTextColor(hdc, RGB(0xE2, 0xE8, 0xF0));
+    SetBkColor(hdc, RGB(0x24, 0x29, 0x32));
+    SetDCBrushColor(hdc, RGB(0x24, 0x29, 0x32));
+    return (HBRUSH)GetStockObject(DC_BRUSH);
+}
+
 void WindowBase::Paint() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd_, &ps);
@@ -349,6 +375,13 @@ LRESULT WindowBase::HandleMessage(UINT msg, WPARAM w, LPARAM l) {
         case WM_CHAR:
             OnChar((wchar_t)w);
             return 0;
+        case WM_COMMAND:
+            // 子 EDIT 等控件通知：LOWORD=控件 ID，HIWORD=通知码
+            OnCommand((int)LOWORD(w), (int)HIWORD(w));
+            return 0;
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+            return (LRESULT)OnEditColor((HDC)w, (HWND)l);
         case WM_TIMER:
             OnTimer((UINT)w);
             return 0;

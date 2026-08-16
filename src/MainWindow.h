@@ -40,6 +40,7 @@ protected:
     void OnMouseWheel(int delta) override;
     void OnDropFiles(HDROP drop) override;
     void OnActivate() override;
+    void OnCommand(int id, int code) override;                     // 搜索 EDIT 通知（EN_CHANGE）
     void OnReaderClosed();   // 阅读器关闭后异步刷新进度
     void DrawTitleBarContent(ID2D1RenderTarget* rt, int w, int h) override;
     bool OnCloseRequested() override;                              // 托盘：隐藏而非退出
@@ -66,6 +67,8 @@ private:
 
     // ---- 左栏 ----
     void OpenLibrarySwitcher(); // 汉堡按钮：下拉显示已加载的资源库，点击切换
+    void CreateSearchEdit();    // 创建真实 EDIT 搜索框（IME 原生支持）
+    void PositionSearchEdit();  // 侧栏/窗口尺寸变化时同步 EDIT 位置
     void OnSearchChanged();
     void StartSidebarResize(int x);
     void UpdateSidebarResize(int x);
@@ -194,6 +197,7 @@ private:
     int TreeTop() const { return 268; }
     int TreeBottom() const { return Height() - 40; }
     D2D1_RECT_F SearchBoxRect() const;
+    D2D1_RECT_F SearchEditRect() const;   // EDIT 内嵌于搜索框内的区域
     D2D1_RECT_F NavRect(int i) const;
     D2D1_RECT_F TreeHeaderRect() const;
 
@@ -221,12 +225,16 @@ private:
     int sidebarWidth_ = 260;
     D2D1_RECT_F hamburgerRect_{};
     bool hamburgerHover_ = false;
-    TextBox searchBox_;
-    bool searchFocused_ = false;
     int navHover_ = -1;
     bool resizing_ = false;
     int resizeStartX_ = 0;
     int resizeStartW_ = 0;
+
+    // 真实 EDIT 搜索框（原生 IME/TSF 支持，替代自绘）
+    HWND searchEdit_ = nullptr;
+    WNDPROC searchEditOldProc_ = nullptr;                        // 原子类窗口过程
+    static constexpr UINT kSearchEditId = 2001;
+    static LRESULT CALLBACK SearchEditProc(HWND, UINT, WPARAM, LPARAM);  // 拦截 Ctrl+A 全选
 
     // 搜索防抖
     static constexpr UINT kSearchTimer = 1;

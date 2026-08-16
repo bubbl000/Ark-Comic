@@ -43,6 +43,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::Run() {
     Create(nullptr, true);
+    CreateSearchEdit();
     tray_.Add(Hwnd(), kTrayMsg);
     RunModal();
     tray_.Remove();
@@ -228,6 +229,58 @@ void MainWindow::RefreshFiltered() {
 D2D1_RECT_F MainWindow::SearchBoxRect() const {
     return D2D1::RectF(12, 88, (float)(sidebarWidth_ - 12), 120);
 }
+
+// EDIT 控件内嵌于搜索框内（避开左侧图标，留出内边距）
+D2D1_RECT_F MainWindow::SearchEditRect() const {
+    auto s = SearchBoxRect();
+    return D2D1::RectF(s.left + 30, s.top + 2, s.right - 4, s.bottom - 2);
+}
+
+// 真实 EDIT 搜索框：原生 IME/TSF 支持（候选框/组字窗口自动跟随光标）
+void MainWindow::CreateSearchEdit() {
+    if (!Hwnd()) return;
+    auto r = SearchEditRect();
+    searchEdit_ = CreateEdit(r, kSearchEditId);
+    if (searchEdit_) {
+        // 空文本占位提示（原生 EM_SETCUEBANNER，聚焦时自动隐藏）
+        std::wstring hint = i18n::Tr(L"搜索漫画", L"Search comics");
+        SendMessageW(searchEdit_, EM_SETCUEBANNER, TRUE, (LPARAM)hint.c_str());
+        // 子类化：原生 EDIT 不支持 Ctrl+A，拦截补全选
+        SetWindowLongPtrW(searchEdit_, GWLP_USERDATA, (LONG_PTR)this);
+        searchEditOldProc_ = (WNDPROC)SetWindowLongPtrW(searchEdit_, GWLP_WNDPROC,
+                                                        (LONG_PTR)MainWindow::SearchEditProc);
+    }
+}
+
+// 子类化：原生单行 EDIT 不响应 Ctrl+A，手动全选
+LRESULT CALLBACK MainWindow::SearchEditProc(HWND h, UINT msg, WPARAM w, LPARAM l) {
+    auto* self = (MainWindow*)GetWindowLongPtrW(h, GWLP_USERDATA);
+    if (!self) return DefWindowProcW(h, msg, w, l);
+    if (msg == WM_KEYDOWN && w == 'A' && (GetKeyState(VK_CONTROL) & 0x8000)) {
+        SendMessageW(h, EM_SETSEL, 0, -1);
+        return 0;
+    }
+    return CallWindowProcW(self->searchEditOldProc_, h, msg, w, l);
+}
+
+// 侧栏宽度/窗口尺寸变化时同步 EDIT 位置
+void MainWindow::PositionSearchEdit() {
+    if (!searchEdit_) return;
+    auto r = SearchEditRect();
+    MoveWindow(searchEdit_, (int)r.left, (int)r.top,
+               (int)(r.right - r.left), (int)(r.bottom - r.top), TRUE);
+}
+
+void MainWindow::OnCommand(int id, int code) {
+    if (id != (int)kSearchEditId || !searchEdit_) return;
+    if (code == EN_CHANGE) {  // 文本变化：同步到 searchText_ 并防抖触发筛选
+        int n = GetWindowTextLengthW(searchEdit_);
+        searchText_.assign((size_t)n, L'\0');
+        if (n > 0) GetWindowTextW(searchEdit_, &searchText_[0], n + 1);
+        OnSearchChanged();
+    }
+}
+
 D2D1_RECT_F MainWindow::NavRect(int i) const {
     int top = 128 + i * 31;
     return D2D1::RectF(12, (float)top, (float)(sidebarWidth_ - 12), (float)(top + 30));
@@ -327,18 +380,11 @@ void MainWindow::OnPaint(ID2D1RenderTarget* rt, int w, int h) {
     D2D::Text(rt, i18n::Tr(L"资源库", L"Library"), titleRect, theme::TextPrimary(), 15, DWRITE_FONT_WEIGHT_SEMI_BOLD,
               DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
-    // 搜索框
+    // 搜索框（背景 + 图标；文本由下方真实 EDIT 子窗口绘制）
     auto srect = SearchBoxRect();
     D2D::RoundedRect(rt, srect, 6, D2D1::ColorF(1, 1, 1, 0.06f), theme::BorderColor(), 1.0f);
     D2D1_RECT_F srchIc{ srect.left + 8, srect.top, srect.left + 26, srect.bottom };
     D2D::Icon(rt, L"\xE721", srchIc, theme::TextSecondary(), 12);
-    D2D1_RECT_F srchTxt{ srect.left + 30, srect.top, srect.right - 8, srect.bottom };
-    if (searchText_.empty() && !searchFocused_)
-        D2D::Text(rt, i18n::Tr(L"搜索漫画", L"Search comics"), srchTxt, theme::TextSecondary(), 13, DWRITE_FONT_WEIGHT_NORMAL,
-                  DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-    else
-        D2D::Text(rt, searchText_, srchTxt, theme::TextPrimary(), 13, DWRITE_FONT_WEIGHT_NORMAL,
-                  DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
     // 快捷导航（全部 / 标签管理 / 回收站）
     struct NavDef { const wchar_t* icon; QuickNav nav; };
@@ -802,10 +848,6 @@ void MainWindow::OnLButtonDown(int x, int y) {
         OpenLibrarySwitcher();
         return;
     }
-    // 搜索框聚焦
-    auto srect = SearchBoxRect();
-    searchFocused_ = (x >= srect.left && x <= srect.right && y >= srect.top && y <= srect.bottom);
-    if (searchFocused_) SetFocus(Hwnd());
     // 快捷导航
     for (int i = 0; i < 3; i++) {
         auto r = NavRect(i);
@@ -1158,17 +1200,6 @@ void MainWindow::OnKeyDown(UINT vk) {
         }
         return;
     }
-    if (searchFocused_) {
-        if (vk == VK_BACK && !searchText_.empty()) {
-            searchText_.pop_back();
-            OnSearchChanged();
-            Invalidate();
-        } else if (vk == VK_ESCAPE) {
-            searchFocused_ = false;
-            Invalidate();
-        }
-        return;
-    }
     if (pageJumpFocused_) {
         if (vk == VK_RETURN) { DoJumpPage(); return; }
         if (vk == VK_BACK && !pageJumpText_.empty()) {
@@ -1192,13 +1223,6 @@ void MainWindow::OnChar(wchar_t ch) {
         Invalidate();
         return;
     }
-    if (searchFocused_) {
-        if (ch < 32) return;
-        searchText_ += ch;
-        OnSearchChanged();
-        Invalidate();
-        return;
-    }
     if (pageJumpFocused_) {
         if (ch < L'0' || ch > L'9') return;
         if (pageJumpText_.size() < 4) pageJumpText_ += ch;
@@ -1217,6 +1241,7 @@ void MainWindow::OnResize(int w, int h) {
     LayoutListRows();
     LayoutTagChips();
     LayoutDetail();
+    PositionSearchEdit();
 }
 
 // 搜索防抖：标记脏并重启 300ms 定时器
@@ -1336,7 +1361,7 @@ void MainWindow::UpdateSidebarResize(int x) {
     int nw = resizeStartW_ + (x - resizeStartX_);
     if (nw < 200) nw = 200;
     if (nw > 420) nw = 420;
-    if (nw != sidebarWidth_) { sidebarWidth_ = nw; LayoutTree(); ComputeHeaderRects(); LayoutCards(); LayoutListRows(); Invalidate(); }
+    if (nw != sidebarWidth_) { sidebarWidth_ = nw; LayoutTree(); ComputeHeaderRects(); LayoutCards(); LayoutListRows(); Invalidate(); PositionSearchEdit(); }
 }
 void MainWindow::EndSidebarResize() {
     resizing_ = false;

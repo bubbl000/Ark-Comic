@@ -48,6 +48,12 @@ protected:
     virtual void OnDestroy() {}
     // 自定义消息（msg >= WM_APP，如托盘通知）
     virtual void OnAppMessage(UINT msg, WPARAM wParam, LPARAM lParam) {}
+    // 子控件通知（WM_COMMAND：EDIT 的 EN_CHANGE 等）
+    virtual void OnCommand(int id, int code) {}
+    // WM_CTLCOLOREDIT/STATIC：设置子 EDIT 文字/背景色，返回背景画刷（默认深色主题，可覆盖）
+    virtual HBRUSH OnEditColor(HDC hdc, HWND edit);
+    // 创建深色主题子 EDIT 控件（rect 为客户区坐标）；返回句柄，失败返回 nullptr
+    HWND CreateEdit(const D2D1_RECT_F& rect, UINT id, const wchar_t* text = L"");
     // 标题栏左侧内容（默认绘制居中标题文字）
     virtual void DrawTitleBarContent(ID2D1RenderTarget* rt, int w, int h);
 

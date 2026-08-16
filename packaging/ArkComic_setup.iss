@@ -3,7 +3,7 @@
 ; 用法：ISCC.exe "packaging\ArkComic_setup.iss"
 
 #define MyAppName "Ark Comic"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Ark Comic Contributors"
 #define MyAppExeName "ArkComic.exe"
 #define MyAppId "{8D4C6F42-5B9E-4A3C-9D2F-1E7B8A0C4D5F}"
