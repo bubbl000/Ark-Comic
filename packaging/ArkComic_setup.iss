@@ -12,6 +12,9 @@
 AppId={{#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+; 安装包文件属性版本（AppVersion 只写安装元数据，PE 版本资源需显式指定）
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\ArkComic
 DefaultGroupName={#MyAppName}
